@@ -84,7 +84,7 @@ class SumerianConnector {
         camera.getProjectionMatrix(mProjectionMatrix, 0, 0.02f, 20.0f);
 
         final String cameraUpdateString = "ARCoreBridge.viewProjectionMatrixUpdate('" + serializeArray(mViewMatrix) +"', '"+ serializeArray(mProjectionMatrix) + "');";
-        evaluateWebViewJavascriptSync(cameraUpdateString, frameNumber);
+        evaluateWebViewJavascriptSync(cameraUpdateString);
 
         HashMap<String, float[]> anchorMap = new HashMap<>();
 
@@ -143,7 +143,7 @@ class SumerianConnector {
     }
 
     private void evaluateWebViewJavascript(final String scriptString) {
-        final Handler mainHandler = new Handler(Looper.getMainLooper());
+       /* final Handler mainHandler = new Handler(Looper.getMainLooper());
         final Runnable webViewUpdate = new Runnable() {
             @Override
             public void run() {
@@ -151,22 +151,11 @@ class SumerianConnector {
             }
         };
 
-        mainHandler.postAtFrontOfQueue(webViewUpdate);
+        mainHandler.postAtFrontOfQueue(webViewUpdate);*/
     }
 
-    private void evaluateWebViewJavascriptSync(final String scriptString, int frameNum) {
-        final SumerianConnector parent = this;
-        final int frameNumF = frameNum;
-        final Handler mainHandler = new Handler(Looper.getMainLooper());
-        final Runnable webViewUpdate = new Runnable() {
-            @Override
-            public void run() {
-                mWebView.evaluateJavascript(scriptString, null);
-                parent.frameNum = frameNumF;
-            }
-        };
-
-        mainHandler.postAtFrontOfQueue(webViewUpdate);
+    private void evaluateWebViewJavascriptSync(final String scriptString) {
+        mWebView.evaluateJavascript(scriptString, null);
     }
 
     private int convertRgbaToTemperature(float[] colorCorrectionRgba) {

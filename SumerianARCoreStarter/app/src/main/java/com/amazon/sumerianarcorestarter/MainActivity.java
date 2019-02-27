@@ -56,6 +56,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     private Session mSession;
     private SumerianConnector mSumerianConnector;
     private int frameNum = 0;
+    private Frame currentFrame;
+    private boolean isPaused = false;
 
     // Set to true ensures requestInstall() triggers installation if necessary.
     private boolean mUserRequestedInstall = true;
@@ -87,7 +89,9 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         mSurfaceView.setEGLContextClientVersion(2);
         mSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
         mSurfaceView.setRenderer(this);
-        mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY
+        );
+
     }
 
     @Override
@@ -109,6 +113,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     @Override
     protected void onResume() {
         super.onResume();
+        isPaused = false;
 
         if (mSession == null) {
             // ARCore requires camera permissions to operate. If we did not yet obtain runtime
@@ -139,7 +144,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
             // Create config and check if camera access that is not blocking is supported.
             Config config = new Config(mSession);
-            config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
+            config.setUpdateMode(Config.UpdateMode.BLOCKING);
             if (!mSession.isSupported(config)) {
                 throw new RuntimeException("This device does not support AR");
             }
@@ -147,6 +152,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             config.setAugmentedImageDatabase(createImageDatabase(mSession));
             mSession.configure(config);
             mSumerianConnector.loadUrl(SCENE_URL);
+
+            animateOne();
         }
 
         try {
@@ -155,11 +162,51 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             e.printStackTrace();
         }
         mSurfaceView.onResume();
+
+
+    }
+
+    public void animateOne () {
+        if(!this.isPaused) {
+
+        try {
+                frameNum++;
+
+                // Obtain the current frame from ARSession. When the configuration is set to
+                // UpdateMode.BLOCKING (it is by default), this will throttle the rendering to the
+                // camera framerate.
+                currentFrame = mSession.update();
+                mSumerianConnector.update(frameNum);
+                // now that we've got the camera frame, and sent that info to the webview, request a render.
+
+            } catch (Throwable t) {
+                // Avoid crashing the application due to unhandled exceptions.
+                Log.e(TAG, "Exception on the app update event", t);
+            }
+
+        }
+        // todo: experiment in a different order?
+        mSurfaceView.requestRender();
+
+        // call ouselves back.
+        final MainActivity self = this;
+        final Handler mainHandler = new Handler(Looper.getMainLooper());
+        final Runnable appUpdate = new Runnable() {
+            @Override
+            public void run() {
+                self.animateOne();
+            }
+        };
+        // run as fast as possible, but after all the other things have run (don't starve)
+        // the blocking behavior of mSession.update() will make our loop locked to the camera updates. this is what we want.
+        mainHandler.postDelayed(appUpdate, 33);
     }
 
     @Override
     public void onPause() {
         super.onPause();
+        isPaused = true;
+
         // Note that the order matters - GLSurfaceView is paused first so that it does not try
         // to query the session. If Session is paused before GLSurfaceView, GLSurfaceView may
         // still call mSession.update() and get a SessionPausedException.
@@ -207,31 +254,12 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             return;
         }
 
-        try {
-
-            frameNum++;
-            // Obtain the current frame from ARSession. When the configuration is set to
-            // UpdateMode.BLOCKING (it is by default), this will throttle the rendering to the
-            // camera framerate.
-            final Frame frame = mSession.update();
-            mSumerianConnector.update(frameNum);
-
+        if(currentFrame != null) {
             // Draw background.
-            mBackgroundRenderer.draw(frame);
-
-            int maxCount = 1;
-            while(this.mSumerianConnector.frameNum != frameNum && maxCount != 0) {
-                Thread.sleep(1);
-                maxCount--;
-            }
-
-            if(maxCount == 0) {
-                Log.e(TAG,"Failed waiting for main thread to post camera update");
-            }
-        } catch (Throwable t) {
-            // Avoid crashing the application due to unhandled exceptions.
-            Log.e(TAG, "Exception on the OpenGL thread", t);
+            mBackgroundRenderer.draw(currentFrame);
         }
+
+        currentFrame = null;
 
     }
 }
