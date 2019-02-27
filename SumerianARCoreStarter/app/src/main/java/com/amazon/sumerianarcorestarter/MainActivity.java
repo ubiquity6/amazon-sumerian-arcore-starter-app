@@ -23,6 +23,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.os.Handler;
+import android.os.Looper;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -53,6 +55,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     private GLSurfaceView mSurfaceView;
     private Session mSession;
     private SumerianConnector mSumerianConnector;
+    private int frameNum = 0;
 
     // Set to true ensures requestInstall() triggers installation if necessary.
     private boolean mUserRequestedInstall = true;
@@ -196,6 +199,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
     @Override
     public void onDrawFrame(GL10 gl) {
+
         // Clear screen to notify driver it should not load any pixels from previous frame.
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 
@@ -204,17 +208,30 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         }
 
         try {
+
+            frameNum++;
             // Obtain the current frame from ARSession. When the configuration is set to
             // UpdateMode.BLOCKING (it is by default), this will throttle the rendering to the
             // camera framerate.
             final Frame frame = mSession.update();
+            mSumerianConnector.update(frameNum);
 
             // Draw background.
             mBackgroundRenderer.draw(frame);
-            mSumerianConnector.update();
+
+            int maxCount = 1;
+            while(this.mSumerianConnector.frameNum != frameNum && maxCount != 0) {
+                Thread.sleep(1);
+                maxCount--;
+            }
+
+            if(maxCount == 0) {
+                Log.e(TAG,"Failed waiting for main thread to post camera update");
+            }
         } catch (Throwable t) {
             // Avoid crashing the application due to unhandled exceptions.
             Log.e(TAG, "Exception on the OpenGL thread", t);
         }
+
     }
 }

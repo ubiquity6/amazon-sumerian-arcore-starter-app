@@ -41,6 +41,7 @@ class SumerianConnector {
 
     private final float[] mViewMatrix = new float[16];
     private final float[] mProjectionMatrix = new float[16];
+    public int frameNum = -1;
 
     SumerianConnector(WebView webView, Session session, GLSurfaceView surfaceView) {
         mWebView = webView;
@@ -65,7 +66,7 @@ class SumerianConnector {
         mWebView.loadUrl(url);
     }
 
-    void update() {
+    void update(int frameNumber) {
         final Frame frame;
         try {
             frame = mSession.update();
@@ -83,7 +84,7 @@ class SumerianConnector {
         camera.getProjectionMatrix(mProjectionMatrix, 0, 0.02f, 20.0f);
 
         final String cameraUpdateString = "ARCoreBridge.viewProjectionMatrixUpdate('" + serializeArray(mViewMatrix) +"', '"+ serializeArray(mProjectionMatrix) + "');";
-        evaluateWebViewJavascript(cameraUpdateString);
+        evaluateWebViewJavascriptSync(cameraUpdateString, frameNumber);
 
         HashMap<String, float[]> anchorMap = new HashMap<>();
 
@@ -106,7 +107,7 @@ class SumerianConnector {
         if (frame.getLightEstimate().getState() != LightEstimate.State.NOT_VALID) {
             final float[] colorCorrectionRgba = new float[4];
             frame.getLightEstimate().getColorCorrection(colorCorrectionRgba, 0);
-            
+
             final String lightEstimateUpdateScript = "ARCoreBridge.lightingEstimateUpdate(" +
                     String.valueOf(frame.getLightEstimate().getPixelIntensity()) + ", " +
                     convertRgbaToTemperature(colorCorrectionRgba) + ");";
@@ -147,6 +148,21 @@ class SumerianConnector {
             @Override
             public void run() {
                 mWebView.evaluateJavascript(scriptString, null);
+            }
+        };
+
+        mainHandler.postAtFrontOfQueue(webViewUpdate);
+    }
+
+    private void evaluateWebViewJavascriptSync(final String scriptString, int frameNum) {
+        final SumerianConnector parent = this;
+        final int frameNumF = frameNum;
+        final Handler mainHandler = new Handler(Looper.getMainLooper());
+        final Runnable webViewUpdate = new Runnable() {
+            @Override
+            public void run() {
+                mWebView.evaluateJavascript(scriptString, null);
+                parent.frameNum = frameNumF;
             }
         };
 
