@@ -9,6 +9,7 @@ window.ARCoreBridge = (function() {
             super("CustomARSystem", []);
             console.log("ARCoreBridge CustomARSystem created");
             this.ar = arSystem;
+            
         }
         
         onPreRender() {
@@ -23,13 +24,14 @@ window.ARCoreBridge = (function() {
                     this.ar._arViewMatrix = new sumerian.Matrix4(matrices.vm);
                     this.ar._arProjectionMatrix = new sumerian.Matrix4(matrices.pm);
                     this.ar.enabled = true;                
+                    this.frameNum = matrices.fn;
                 }
             }
         }
 
         onPostRender() {
             if (window.Android && window.Android.drawBG) {
-                window.Android.drawBG();
+                window.Android.drawBG(this.frameNum);
             }
         }
     };

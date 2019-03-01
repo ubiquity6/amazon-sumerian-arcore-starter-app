@@ -39,12 +39,17 @@ class SumerianConnector {
     private Session mSession;
     private GLSurfaceView mSurfaceView;
     private BackgroundRenderer mBackgroundRenderer;
+    private int mFrameNum = 0;
 
 
     private final float[] mViewMatrix = new float[16];
     private final float[] mProjectionMatrix = new float[16];
 
-    SumerianConnector(WebView webView, Session session, GLSurfaceView surfaceView, BackgroundRenderer backgroundRenderer) {
+    public interface IDrawBG {
+        void onDrawBg(int frameNum);
+    }
+
+    SumerianConnector(WebView webView, Session session, GLSurfaceView surfaceView, BackgroundRenderer backgroundRenderer, IDrawBG drawCallback) {
         mWebView = webView;
         mSession = session;
         mSurfaceView = surfaceView;
@@ -53,7 +58,7 @@ class SumerianConnector {
         WebSettings webSettings = mWebView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
-        mWebView.addJavascriptInterface(new BridgeInterface(), "Android");
+        mWebView.addJavascriptInterface(new BridgeInterface(drawCallback), "Android");
 
         this.mWebView.setWebViewClient(new WebViewClient() {
             @Override
@@ -68,7 +73,7 @@ class SumerianConnector {
         mWebView.loadUrl(url);
     }
 
-    void update(Frame frame) {
+    void update(Frame frame, int frameNum) {
 
         final Camera camera = frame.getCamera();
 
@@ -79,6 +84,7 @@ class SumerianConnector {
 
         camera.getViewMatrix(mViewMatrix, 0);
         camera.getProjectionMatrix(mProjectionMatrix, 0, 0.02f, 20.0f);
+        mFrameNum = frameNum;
 
         //final String cameraUpdateString = "ARCoreBridge.viewProjectionMatrixUpdate('" + serializeArray(mViewMatrix) +"', '"+ serializeArray(mProjectionMatrix) + "');";
 
@@ -187,6 +193,11 @@ class SumerianConnector {
 
         private float[] mHitTestResultPose = new float[16];
         private long frameid = 0;
+        private IDrawBG mDrawCallback;
+
+        BridgeInterface( IDrawBG drawCallback) {
+            mDrawCallback = drawCallback;
+        }
 
         @JavascriptInterface
         public void requestHitTest(final String requestId, final float screenX, final float screenY) {
@@ -247,15 +258,13 @@ class SumerianConnector {
             String vm = serializeArray(mViewMatrix);
             String pm = serializeArray(mProjectionMatrix);
 
-            String res = "{\"vm\":"+vm+", \"pm\":"+pm+" }"; // \"ts\":"+fn+"}";
-            //mBackgroundRenderer.swapTextures();
-            //mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
+            String res = "{\"vm\":"+vm+", \"pm\":"+pm+", \"fn\":"+mFrameNum+"}";
             return res;
         }
 
         @JavascriptInterface
-        public void drawBG() {
-            frameid++;
+        public void drawBG(int frameNum) {
+            mDrawCallback.onDrawBg(frameNum);
         }
 
     }

@@ -158,7 +158,7 @@ public class BackgroundRenderer {
 
         ShaderUtil.checkGLError(TAG, "Setup 0");
 
-        /*int[] buffers = new int[1];
+        int[] buffers = new int[1];
 
         GLES20.glGenFramebuffers(1, buffers, 0);
         framebufferName = buffers[0];
@@ -186,7 +186,7 @@ public class BackgroundRenderer {
 
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
 
-        ShaderUtil.checkGLError(TAG, "Setup 4");*/
+        ShaderUtil.checkGLError(TAG, "Setup 4");
 
 
     }
@@ -201,7 +201,7 @@ public class BackgroundRenderer {
         ShaderUtil.checkGLError(TAG, "Draw RT 0");
 
         GLES20.glClearColor(0,0.2f, 0, 1);
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         ShaderUtil.checkGLError(TAG, "Draw RT 1");
 
         // No need to test or write depth, the screen quad has arbitrary depth, and is expected
@@ -268,7 +268,6 @@ public class BackgroundRenderer {
      * accurately follow static physical objects.
      * This must be called <b>before</b> drawing virtual content.
      *
-     * @param frame The last {@code Frame} returned by {@link Session#update()}.
      */
     public void draw() {
 
@@ -284,9 +283,12 @@ public class BackgroundRenderer {
 
         ShaderUtil.checkGLError(TAG, "Draw 2");
 
-        drawQuad(textures[0], mQuadVerticesA);
-        drawQuad(textures[1], mQuadVerticesB);
 
+        drawQuad(getSurfaceTextureName(), mQuadVerticesFull);
+        //drawQuad(textures[0], mQuadVerticesA); // draw camera frame
+        //drawQuad(textures[1], mQuadVerticesB);// draw surface
+
+        GLES20.glGetError(); // ignore error.
         ShaderUtil.checkGLError(TAG, "Draw 3");
 
         // Restore the depth state for further drawing.
@@ -305,9 +307,9 @@ public class BackgroundRenderer {
 
     private static final float[] QUAD_COORDS_FULL = new float[]{
             -1.0f, -1.0f, 0.0f,
-            -1.0f, +0.0f, 0.0f,
+            -1.0f, +1.0f, 0.0f,
             +1.0f, -1.0f, 0.0f,
-            +1.0f, +0.0f, 0.0f,
+            +1.0f, +1.0f, 0.0f,
     };
 
     private static final float[] QUAD_COORDS_B = new float[]{

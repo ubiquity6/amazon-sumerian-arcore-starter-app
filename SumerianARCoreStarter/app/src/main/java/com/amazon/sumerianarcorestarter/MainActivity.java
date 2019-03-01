@@ -44,7 +44,7 @@ import java.io.InputStream;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class MainActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
+public class MainActivity extends AppCompatActivity implements GLSurfaceView.Renderer, SumerianConnector.IDrawBG {
     private static final String TAG = MainActivity.class.getSimpleName();
     //private static final String SCENE_URL = "https://d1550wa51vq95s.cloudfront.net/3d19ea8069a94904849e8edeabe3ada0.scene/?arMode=true";
 
@@ -56,7 +56,9 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     private Session mSession;
     private SumerianConnector mSumerianConnector;
     private Frame frame;
-    private int frameNum = 0;
+    private int frameRead = 0;
+    private int frameToWrite = 0;
+    private int lastFrameTimestamp = 0;
 
     // Set to true ensures requestInstall() triggers installation if necessary.
     private boolean mUserRequestedInstall = true;
@@ -90,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         mSurfaceView.setEGLContextClientVersion(2);
         mSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
         mSurfaceView.setRenderer(this);
-        mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+        mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
     }
 
     @Override
@@ -139,7 +141,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
             final WebView webView = findViewById(R.id.activity_main_webview);
 
-            mSumerianConnector = new SumerianConnector(webView, mSession, mSurfaceView, mBackgroundRenderer);
+            mSumerianConnector = new SumerianConnector(webView, mSession, mSurfaceView, mBackgroundRenderer, this);
 
             // Create config and check if camera access that is not blocking is supported.
             Config config = new Config(mSession);
@@ -219,19 +221,32 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             // camera framerate.
 
             // Draw background.
+            // get new frame
 
-            if((frameNum++) % 10 == 0) {
+            if(frameToWrite >= frameRead) {
+                mBackgroundRenderer.draw();
+
+                // getnext frame
                 frame = mSession.update();
-                mBackgroundRenderer.updateFrame(frame);
-                //mBackgroundRenderer.drawToSurface();
-                mSumerianConnector.update(frame);
+                if(frame.getTimestamp() != lastFrameTimestamp) {
+                    frameRead++;
+                    mBackgroundRenderer.updateFrame(frame);
+                    mBackgroundRenderer.drawToSurface();
+                    mSumerianConnector.update(frame, frameRead);
+                }
             }
 
-            mBackgroundRenderer.draw();
 
         } catch (Throwable t) {
             // Avoid crashing the application due to unhandled exceptions.
             Log.e(TAG, "Exception on the OpenGL thread", t);
+        }
+    }
+    @Override
+    public void onDrawBg(int frameNum) {
+        frameToWrite = frameNum;
+        if(frameToWrite >= frameRead) {
+            mSurfaceView.requestRender();
         }
     }
 }
