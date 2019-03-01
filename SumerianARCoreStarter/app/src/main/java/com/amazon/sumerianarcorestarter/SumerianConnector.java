@@ -258,16 +258,14 @@ class SumerianConnector {
             String pm = serializeArray(mProjectionMatrix);
 
             String res = "{\"vm\":"+vm+", \"pm\":"+pm+" }"; // \"ts\":"+fn+"}";
+            mBackgroundRenderer.swapTextures();
+            mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
             return res;
         }
 
         @JavascriptInterface
         public void drawBG() {
             frameid++;
-            if (frameid % 15 == 0) {
-                mBackgroundRenderer.swapTextures();
-                mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
-            }
         }
 
     }

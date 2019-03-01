@@ -44,7 +44,9 @@ public class BackgroundRenderer {
     private static final int TEXCOORDS_PER_VERTEX = 2;
     private static final int FLOAT_SIZE = 4;
 
-    private FloatBuffer mQuadVertices;
+    private FloatBuffer mQuadVerticesA;
+    private FloatBuffer mQuadVerticesB;
+    private FloatBuffer mQuadVerticesFull;
     private FloatBuffer mQuadTexCoord;
     private FloatBuffer mQuadTexCoordTransformed;
 
@@ -86,7 +88,6 @@ public class BackgroundRenderer {
 
 
 
-
     /**
      * Allocates and initializes OpenGL resources needed by the background renderer.  Must be
      * called on the OpenGL thread, typically in
@@ -116,9 +117,23 @@ public class BackgroundRenderer {
 
         ByteBuffer bbVertices = ByteBuffer.allocateDirect(QUAD_COORDS_A.length * FLOAT_SIZE);
         bbVertices.order(ByteOrder.nativeOrder());
-        mQuadVertices = bbVertices.asFloatBuffer();
-        mQuadVertices.put(QUAD_COORDS_A);
-        mQuadVertices.position(0);
+        mQuadVerticesA = bbVertices.asFloatBuffer();
+        mQuadVerticesA.put(QUAD_COORDS_A);
+        mQuadVerticesA.position(0);
+
+        bbVertices = ByteBuffer.allocateDirect(QUAD_COORDS_B.length * FLOAT_SIZE);
+        bbVertices.order(ByteOrder.nativeOrder());
+        mQuadVerticesB = bbVertices.asFloatBuffer();
+        mQuadVerticesB.put(QUAD_COORDS_B);
+        mQuadVerticesB.position(0);
+
+
+        bbVertices = ByteBuffer.allocateDirect(QUAD_COORDS_FULL.length * FLOAT_SIZE);
+        bbVertices.order(ByteOrder.nativeOrder());
+        mQuadVerticesFull = bbVertices.asFloatBuffer();
+        mQuadVerticesFull.put(QUAD_COORDS_FULL);
+        mQuadVerticesFull.position(0);
+
 
         ByteBuffer bbTexCoords = ByteBuffer.allocateDirect(
                 numVertices * TEXCOORDS_PER_VERTEX * FLOAT_SIZE);
@@ -154,6 +169,31 @@ public class BackgroundRenderer {
     }
 
 
+    public void drawQuad(int texture, FloatBuffer mQuadVertices) {
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture);
+
+        GLES20.glUseProgram(mQuadProgram);
+
+        // Set the vertex positions.
+        GLES20.glVertexAttribPointer(
+                mQuadPositionParam, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, 0, mQuadVertices);
+
+        // Set the texture coordinates.
+        GLES20.glVertexAttribPointer(mQuadTexCoordParam, TEXCOORDS_PER_VERTEX,
+                GLES20.GL_FLOAT, false, 0, mQuadTexCoordTransformed);
+
+        // Enable vertex arrays
+        GLES20.glEnableVertexAttribArray(mQuadPositionParam);
+        GLES20.glEnableVertexAttribArray(mQuadTexCoordParam);
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+
+        // Disable vertex arrays
+        GLES20.glDisableVertexAttribArray(mQuadPositionParam);
+        GLES20.glDisableVertexAttribArray(mQuadTexCoordParam);
+
+    }
+
 
 
 
@@ -180,27 +220,8 @@ public class BackgroundRenderer {
         GLES20.glDisable(GLES20.GL_DEPTH_TEST);
         GLES20.glDepthMask(false);
 
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, getSurfaceTextureName());
-
-        GLES20.glUseProgram(mQuadProgram);
-
-        // Set the vertex positions.
-        GLES20.glVertexAttribPointer(
-                mQuadPositionParam, COORDS_PER_VERTEX, GLES20.GL_FLOAT, false, 0, mQuadVertices);
-
-        // Set the texture coordinates.
-        GLES20.glVertexAttribPointer(mQuadTexCoordParam, TEXCOORDS_PER_VERTEX,
-                GLES20.GL_FLOAT, false, 0, mQuadTexCoordTransformed);
-
-        // Enable vertex arrays
-        GLES20.glEnableVertexAttribArray(mQuadPositionParam);
-        GLES20.glEnableVertexAttribArray(mQuadTexCoordParam);
-
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
-
-        // Disable vertex arrays
-        GLES20.glDisableVertexAttribArray(mQuadPositionParam);
-        GLES20.glDisableVertexAttribArray(mQuadTexCoordParam);
+        drawQuad(textures[0], mQuadVerticesA);
+        drawQuad(textures[1], mQuadVerticesB);
 
         // Restore the depth state for further drawing.
         GLES20.glDepthMask(true);
@@ -210,6 +231,13 @@ public class BackgroundRenderer {
     }
 
     private static final float[] QUAD_COORDS_A = new float[]{
+            -1.0f, -1.0f, 0.0f,
+            -1.0f, +0.0f, 0.0f,
+            +1.0f, -1.0f, 0.0f,
+            +1.0f, +0.0f, 0.0f,
+    };
+
+    private static final float[] QUAD_COORDS_FULL = new float[]{
             -1.0f, -1.0f, 0.0f,
             -1.0f, +0.0f, 0.0f,
             +1.0f, -1.0f, 0.0f,
