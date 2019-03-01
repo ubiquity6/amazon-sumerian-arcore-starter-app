@@ -68,17 +68,7 @@ class SumerianConnector {
         mWebView.loadUrl(url);
     }
 
-    void update() {
-
-        Frame frame;
-
-        try {
-            frame = mSession.update();
-        } catch (CameraNotAvailableException e) {
-            e.printStackTrace();
-            return;
-        }
-
+    void update(Frame frame) {
 
         final Camera camera = frame.getCamera();
 
@@ -258,8 +248,8 @@ class SumerianConnector {
             String pm = serializeArray(mProjectionMatrix);
 
             String res = "{\"vm\":"+vm+", \"pm\":"+pm+" }"; // \"ts\":"+fn+"}";
-            mBackgroundRenderer.swapTextures();
-            mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
+            //mBackgroundRenderer.swapTextures();
+            //mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
             return res;
         }
 

@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     private Session mSession;
     private SumerianConnector mSumerianConnector;
     private Frame frame;
+    private int frameNum = 0;
 
     // Set to true ensures requestInstall() triggers installation if necessary.
     private boolean mUserRequestedInstall = true;
@@ -218,9 +219,16 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             // camera framerate.
 
             // Draw background.
-            frame = mSession.update();
-            mBackgroundRenderer.draw(frame);
-            mSumerianConnector.update();
+
+            if((frameNum++) % 10 == 0) {
+                frame = mSession.update();
+                mBackgroundRenderer.updateFrame(frame);
+                //mBackgroundRenderer.drawToSurface();
+                mSumerianConnector.update(frame);
+            }
+
+            mBackgroundRenderer.draw();
+
         } catch (Throwable t) {
             // Avoid crashing the application due to unhandled exceptions.
             Log.e(TAG, "Exception on the OpenGL thread", t);

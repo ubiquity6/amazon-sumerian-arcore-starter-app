@@ -58,6 +58,7 @@ public class BackgroundRenderer {
     private int [] textures;
     private int mCameraTextureIndex = 0;
     private int mSurfaceTextureIndex = 1;
+    private int framebufferName = -1;
 
 
     public int getCameraTextureName() {
@@ -73,18 +74,6 @@ public class BackgroundRenderer {
     public BackgroundRenderer() {
     }
 
-    public void swapTextures()
-    {
-        if (mCameraTextureIndex == 1) {
-            mCameraTextureIndex = 0;
-            mSurfaceTextureIndex = 1;
-        } else {
-            mCameraTextureIndex = 1;
-            mSurfaceTextureIndex = 0;
-        }
-
-
-    }
 
 
 
@@ -99,6 +88,7 @@ public class BackgroundRenderer {
         // Generate the background texture.
         textures = new int[2];
         GLES20.glGenTextures(2, textures, 0);
+
 
         /*
         for (int tid : textures) {
@@ -165,8 +155,75 @@ public class BackgroundRenderer {
 
         ShaderUtil.checkGLError(TAG, "Program parameters");
 
-        swapTextures();
+
+        ShaderUtil.checkGLError(TAG, "Setup 0");
+
+        /*int[] buffers = new int[1];
+
+        GLES20.glGenFramebuffers(1, buffers, 0);
+        framebufferName = buffers[0];
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebufferName);
+
+        // "Bind" the newly created texture : all future texture functions will modify this texture
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, getSurfaceTextureName());
+
+// Give an empty image to OpenGL ( the last "0" )
+        GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0,GLES20.GL_RGB, 1024, 768, 0,GLES20.GL_RGB, GLES20.GL_UNSIGNED_BYTE, null);
+        ShaderUtil.checkGLError(TAG, "Setup 1");
+
+        GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, getSurfaceTextureName(), 0);
+        ShaderUtil.checkGLError(TAG, "Setup 2");
+
+        //GLES20.glDrawBuffer(GLES20.GL_COLOR_ATTACHMENT0);
+        //ShaderUtil.checkGLError(TAG, "Setup 3");
+
+        // Set the list of draw buffers.
+        // int DrawBuffers[1] = {GLES20.GL_COLOR_ATTACHMENT0};
+        //GLES20.glDr(1, DrawBuffers); // "1" is the size of DrawBuffers
+
+        if(GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER) != GLES20.GL_FRAMEBUFFER_COMPLETE)
+            Log.e(TAG,"FAILED TO SET RENDERBUFFER");
+
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+
+        ShaderUtil.checkGLError(TAG, "Setup 4");*/
+
+
     }
+
+    public void drawToSurface() {
+        drawQuadToRenderTarget(getCameraTextureName(), mQuadVerticesFull);
+    }
+
+    public void drawQuadToRenderTarget(int texture, FloatBuffer mQuadVertices) {
+        ShaderUtil.checkGLError(TAG, "Draw RT -1");
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, framebufferName);
+        ShaderUtil.checkGLError(TAG, "Draw RT 0");
+
+        GLES20.glClearColor(0,0.2f, 0, 1);
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        ShaderUtil.checkGLError(TAG, "Draw RT 1");
+
+        // No need to test or write depth, the screen quad has arbitrary depth, and is expected
+        // to be drawn first.
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST);
+        GLES20.glDepthMask(false);
+        ShaderUtil.checkGLError(TAG, "Draw RT 2");
+
+
+        drawQuad(texture, mQuadVertices);
+        ShaderUtil.checkGLError(TAG, "Draw RT 3");
+
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+        ShaderUtil.checkGLError(TAG, "Draw RT 4");
+
+        GLES20.glDepthMask(true);
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST);
+
+        ShaderUtil.checkGLError(TAG, "Draw RT 5");
+
+    }
+
 
 
     public void drawQuad(int texture, FloatBuffer mQuadVertices) {
@@ -196,6 +253,13 @@ public class BackgroundRenderer {
 
 
 
+    public void updateFrame(Frame frame) {
+        // If display rotation changed (also includes view size change), we need to re-query the uv
+        // coordinates for the screen rect, as they may have changed as well.
+        if (frame.hasDisplayGeometryChanged()) {
+            frame.transformDisplayUvCoords(mQuadTexCoord, mQuadTexCoordTransformed);
+        }
+    }
 
     /**
      * Draws the AR background image.  The image will be drawn such that virtual content rendered
@@ -206,28 +270,30 @@ public class BackgroundRenderer {
      *
      * @param frame The last {@code Frame} returned by {@link Session#update()}.
      */
-    public void draw(Frame frame) {
-        // If display rotation changed (also includes view size change), we need to re-query the uv
-        // coordinates for the screen rect, as they may have changed as well.
-        if (frame.hasDisplayGeometryChanged()) {
-            frame.transformDisplayUvCoords(mQuadTexCoord, mQuadTexCoordTransformed);
-        }
+    public void draw() {
 
+        ShaderUtil.checkGLError(TAG, "Draw 0");
+        GLES20.glClearColor(0,0.0f, 0.2f, 1);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+        ShaderUtil.checkGLError(TAG, "Draw 1");
 
         // No need to test or write depth, the screen quad has arbitrary depth, and is expected
         // to be drawn first.
         GLES20.glDisable(GLES20.GL_DEPTH_TEST);
         GLES20.glDepthMask(false);
 
+        ShaderUtil.checkGLError(TAG, "Draw 2");
+
         drawQuad(textures[0], mQuadVerticesA);
         drawQuad(textures[1], mQuadVerticesB);
+
+        ShaderUtil.checkGLError(TAG, "Draw 3");
 
         // Restore the depth state for further drawing.
         GLES20.glDepthMask(true);
         GLES20.glEnable(GLES20.GL_DEPTH_TEST);
 
-        ShaderUtil.checkGLError(TAG, "Draw");
+        ShaderUtil.checkGLError(TAG, "Draw 4");
     }
 
     private static final float[] QUAD_COORDS_A = new float[]{
