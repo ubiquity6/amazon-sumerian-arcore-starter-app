@@ -21,18 +21,27 @@ window.ARCoreBridge = (function() {
                 if (matricesJSON!="") {
                     var matrices = JSON.parse(matricesJSON);
 
+                    while(matrices.fn == this.frameNum) {
+                        matricesJSON = window.Android.getMatrices();
+                        matrices = JSON.parse(matricesJSON);
+                    }
+                    
                     this.ar._arViewMatrix = new sumerian.Matrix4(matrices.vm);
                     this.ar._arProjectionMatrix = new sumerian.Matrix4(matrices.pm);
                     this.ar.enabled = true;                
                     this.frameNum = matrices.fn;
+
+                    if (window.Android && window.Android.drawBG) {
+                        window.Android.drawBG(this.frameNum);
+                    }
                 }
             }
         }
 
+        process() {
+        }
+
         onPostRender() {
-            if (window.Android && window.Android.drawBG) {
-                window.Android.drawBG(this.frameNum);
-            }
         }
     };
 
