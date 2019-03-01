@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         mSurfaceView.setEGLContextClientVersion(2);
         mSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
         mSurfaceView.setRenderer(this);
-        mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);
+        mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
     }
 
     @Override
@@ -145,8 +145,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
             // Create config and check if camera access that is not blocking is supported.
             Config config = new Config(mSession);
-            config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
-            //config.setUpdateMode(Config.UpdateMode.BLOCKING);
+            //config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
+            config.setUpdateMode(Config.UpdateMode.BLOCKING);
             if (!mSession.isSupported(config)) {
                 throw new RuntimeException("This device does not support AR");
             }
@@ -223,18 +223,23 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             // Draw background.
             // get new frame
 
-            if(frameToWrite >= frameRead) {
-                mBackgroundRenderer.draw();
+            // getnext frame
+            frame = mSession.update();
+//            if(frame.getTimestamp() != lastFrameTimestamp) {
+                frameRead++;
+                mBackgroundRenderer.updateFrame(frame);
+                mBackgroundRenderer.drawToSurface();
+                mSumerianConnector.update(frame, frameRead);
+  //          }
 
-                // getnext frame
-                frame = mSession.update();
-                if(frame.getTimestamp() != lastFrameTimestamp) {
-                    frameRead++;
-                    mBackgroundRenderer.updateFrame(frame);
-                    mBackgroundRenderer.drawToSurface();
-                    mSumerianConnector.update(frame, frameRead);
-                }
+            int maxCount = 100;
+            while(frameToWrite < frameRead && maxCount-- > 0) {
+                // block the GL thread until "onDrawBg" happens
+                Thread.sleep(1);
+                maxCount --;
             }
+
+            mBackgroundRenderer.draw();
 
 
         } catch (Throwable t) {
@@ -245,8 +250,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     @Override
     public void onDrawBg(int frameNum) {
         frameToWrite = frameNum;
-        if(frameToWrite >= frameRead) {
+        /*if(frameToWrite >= frameRead) {
             mSurfaceView.requestRender();
-        }
+        }*/
     }
 }
