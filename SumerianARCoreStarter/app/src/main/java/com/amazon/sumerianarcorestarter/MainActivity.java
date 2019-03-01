@@ -46,13 +46,16 @@ import javax.microedition.khronos.opengles.GL10;
 
 public class MainActivity extends AppCompatActivity implements GLSurfaceView.Renderer {
     private static final String TAG = MainActivity.class.getSimpleName();
-    private static final String SCENE_URL = "https://d1550wa51vq95s.cloudfront.net/3d19ea8069a94904849e8edeabe3ada0.scene/?arMode=true";
+    //private static final String SCENE_URL = "https://d1550wa51vq95s.cloudfront.net/3d19ea8069a94904849e8edeabe3ada0.scene/?arMode=true";
+
+    private static final String SCENE_URL = "http://127.0.0.1:8000/?arMode=true";
     private static final String IMAGE_FILENAME = "SumerianAnchorImage.png";
     private static final float IMAGE_WIDTH_IN_METERS = (float)0.18;
 
     private GLSurfaceView mSurfaceView;
     private Session mSession;
     private SumerianConnector mSumerianConnector;
+    private Frame frame;
 
     // Set to true ensures requestInstall() triggers installation if necessary.
     private boolean mUserRequestedInstall = true;
@@ -69,6 +72,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         }
 
         imageDatabase.addImage("SumerianAnchorImage", bitmap, IMAGE_WIDTH_IN_METERS);
+
+        WebView.setWebContentsDebuggingEnabled(true);
         return imageDatabase;
     }
 
@@ -132,11 +137,13 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
             }
 
             final WebView webView = findViewById(R.id.activity_main_webview);
-            mSumerianConnector = new SumerianConnector(webView, mSession, mSurfaceView);
+
+            mSumerianConnector = new SumerianConnector(webView, mSession, mSurfaceView, mBackgroundRenderer);
 
             // Create config and check if camera access that is not blocking is supported.
             Config config = new Config(mSession);
             config.setUpdateMode(Config.UpdateMode.LATEST_CAMERA_IMAGE);
+            //config.setUpdateMode(Config.UpdateMode.BLOCKING);
             if (!mSession.isSupported(config)) {
                 throw new RuntimeException("This device does not support AR");
             }
@@ -185,7 +192,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
         // Create the texture and pass it to ARCore session to be filled during update().
         mBackgroundRenderer.createOnGlThread(/*context=*/this);
-        mSession.setCameraTextureName(mBackgroundRenderer.getTextureId());
+        mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
+
     }
 
     @Override
@@ -199,17 +207,18 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         // Clear screen to notify driver it should not load any pixels from previous frame.
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
 
+
         if (mSession == null) {
             return;
         }
 
         try {
-            // Obtain the current frame from ARSession. When the configuration is set to
+            // Obtain the current frame from ARSessions. When the configuration is set to
             // UpdateMode.BLOCKING (it is by default), this will throttle the rendering to the
             // camera framerate.
-            final Frame frame = mSession.update();
 
             // Draw background.
+            frame = mSession.update();
             mBackgroundRenderer.draw(frame);
             mSumerianConnector.update();
         } catch (Throwable t) {

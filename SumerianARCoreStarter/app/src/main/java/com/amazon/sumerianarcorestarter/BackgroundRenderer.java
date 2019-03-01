@@ -23,6 +23,8 @@ import android.content.Context;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
+import android.util.Log;
+
 import com.google.ar.core.Frame;
 import com.google.ar.core.Session;
 import java.nio.ByteBuffer;
@@ -48,16 +50,42 @@ public class BackgroundRenderer {
 
     private int mQuadProgram;
 
+
     private int mQuadPositionParam;
     private int mQuadTexCoordParam;
-    private int mTextureId = -1;
+    private int [] textures;
+    private int mCameraTextureIndex = 0;
+    private int mSurfaceTextureIndex = 1;
+
+
+    public int getCameraTextureName() {
+        return textures[mCameraTextureIndex];
+    }
+
+    public int getSurfaceTextureName() {
+        return textures[mSurfaceTextureIndex];
+    }
+
+
 
     public BackgroundRenderer() {
     }
 
-    public int getTextureId() {
-        return mTextureId;
+    public void swapTextures()
+    {
+        if (mCameraTextureIndex == 1) {
+            mCameraTextureIndex = 0;
+            mSurfaceTextureIndex = 1;
+        } else {
+            mCameraTextureIndex = 1;
+            mSurfaceTextureIndex = 0;
+        }
+
+
     }
+
+
+
 
     /**
      * Allocates and initializes OpenGL resources needed by the background renderer.  Must be
@@ -68,25 +96,28 @@ public class BackgroundRenderer {
      */
     public void createOnGlThread(Context context) {
         // Generate the background texture.
-        int[] textures = new int[1];
-        GLES20.glGenTextures(1, textures, 0);
-        mTextureId = textures[0];
-        int textureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
-        GLES20.glBindTexture(textureTarget, mTextureId);
-        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
-        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
-        GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+        textures = new int[2];
+        GLES20.glGenTextures(2, textures, 0);
+
+        /*
+        for (int tid : textures) {
+            int textureTarget = GLES11Ext.GL_TEXTURE_EXTERNAL_OES;
+            GLES20.glBindTexture(textureTarget, tid);
+            GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+            GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
+            GLES20.glTexParameteri(textureTarget, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST);
+        }*/
 
         int numVertices = 4;
-        if (numVertices != QUAD_COORDS.length / COORDS_PER_VERTEX) {
+        if (numVertices != QUAD_COORDS_A.length / COORDS_PER_VERTEX) {
             throw new RuntimeException("Unexpected number of vertices in BackgroundRenderer.");
         }
 
-        ByteBuffer bbVertices = ByteBuffer.allocateDirect(QUAD_COORDS.length * FLOAT_SIZE);
+        ByteBuffer bbVertices = ByteBuffer.allocateDirect(QUAD_COORDS_A.length * FLOAT_SIZE);
         bbVertices.order(ByteOrder.nativeOrder());
         mQuadVertices = bbVertices.asFloatBuffer();
-        mQuadVertices.put(QUAD_COORDS);
+        mQuadVertices.put(QUAD_COORDS_A);
         mQuadVertices.position(0);
 
         ByteBuffer bbTexCoords = ByteBuffer.allocateDirect(
@@ -118,7 +149,13 @@ public class BackgroundRenderer {
         mQuadTexCoordParam = GLES20.glGetAttribLocation(mQuadProgram, "a_TexCoord");
 
         ShaderUtil.checkGLError(TAG, "Program parameters");
+
+        swapTextures();
     }
+
+
+
+
 
     /**
      * Draws the AR background image.  The image will be drawn such that virtual content rendered
@@ -136,12 +173,14 @@ public class BackgroundRenderer {
             frame.transformDisplayUvCoords(mQuadTexCoord, mQuadTexCoordTransformed);
         }
 
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+
         // No need to test or write depth, the screen quad has arbitrary depth, and is expected
         // to be drawn first.
         GLES20.glDisable(GLES20.GL_DEPTH_TEST);
         GLES20.glDepthMask(false);
 
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureId);
+        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, getSurfaceTextureName());
 
         GLES20.glUseProgram(mQuadProgram);
 
@@ -170,10 +209,17 @@ public class BackgroundRenderer {
         ShaderUtil.checkGLError(TAG, "Draw");
     }
 
-    private static final float[] QUAD_COORDS = new float[]{
+    private static final float[] QUAD_COORDS_A = new float[]{
             -1.0f, -1.0f, 0.0f,
-            -1.0f, +1.0f, 0.0f,
+            -1.0f, +0.0f, 0.0f,
             +1.0f, -1.0f, 0.0f,
+            +1.0f, +0.0f, 0.0f,
+    };
+
+    private static final float[] QUAD_COORDS_B = new float[]{
+            -1.0f, -0.0f, 0.0f,
+            -1.0f, +1.0f, 0.0f,
+            +1.0f, -0.0f, 0.0f,
             +1.0f, +1.0f, 0.0f,
     };
 

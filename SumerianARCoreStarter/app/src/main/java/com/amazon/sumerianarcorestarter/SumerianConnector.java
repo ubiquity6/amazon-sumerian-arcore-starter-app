@@ -38,14 +38,17 @@ class SumerianConnector {
     private WebView mWebView;
     private Session mSession;
     private GLSurfaceView mSurfaceView;
+    private BackgroundRenderer mBackgroundRenderer;
+
 
     private final float[] mViewMatrix = new float[16];
     private final float[] mProjectionMatrix = new float[16];
 
-    SumerianConnector(WebView webView, Session session, GLSurfaceView surfaceView) {
+    SumerianConnector(WebView webView, Session session, GLSurfaceView surfaceView, BackgroundRenderer backgroundRenderer) {
         mWebView = webView;
         mSession = session;
         mSurfaceView = surfaceView;
+        mBackgroundRenderer = backgroundRenderer;
 
         WebSettings webSettings = mWebView.getSettings();
         webSettings.setJavaScriptEnabled(true);
@@ -66,24 +69,33 @@ class SumerianConnector {
     }
 
     void update() {
-        final Frame frame;
+
+        Frame frame;
+
         try {
             frame = mSession.update();
         } catch (CameraNotAvailableException e) {
             e.printStackTrace();
             return;
         }
+
+
         final Camera camera = frame.getCamera();
 
         if (camera.getTrackingState() == TrackingState.PAUSED) {
             return;
         }
 
+
         camera.getViewMatrix(mViewMatrix, 0);
         camera.getProjectionMatrix(mProjectionMatrix, 0, 0.02f, 20.0f);
 
-        final String cameraUpdateString = "ARCoreBridge.viewProjectionMatrixUpdate('" + serializeArray(mViewMatrix) +"', '"+ serializeArray(mProjectionMatrix) + "');";
-        evaluateWebViewJavascript(cameraUpdateString);
+        //final String cameraUpdateString = "ARCoreBridge.viewProjectionMatrixUpdate('" + serializeArray(mViewMatrix) +"', '"+ serializeArray(mProjectionMatrix) + "');";
+
+
+        //evaluateWebViewJavascript(cameraUpdateString);
+
+
 
         HashMap<String, float[]> anchorMap = new HashMap<>();
 
@@ -103,6 +115,9 @@ class SumerianConnector {
             evaluateWebViewJavascript(anchorUpdateScript);
         }
 
+
+
+        /*
         if (frame.getLightEstimate().getState() != LightEstimate.State.NOT_VALID) {
             final float[] colorCorrectionRgba = new float[4];
             frame.getLightEstimate().getColorCorrection(colorCorrectionRgba, 0);
@@ -113,6 +128,7 @@ class SumerianConnector {
             evaluateWebViewJavascript(lightEstimateUpdateScript);
         }
 
+
         // Image Recognition
         Collection<AugmentedImage> updatedAugmentedImages = frame.getUpdatedTrackables(AugmentedImage.class);
         for (AugmentedImage img : updatedAugmentedImages) {
@@ -122,6 +138,7 @@ class SumerianConnector {
                 }
             }
         }
+        */
     }
 
     private void imageAnchorCreated(AugmentedImage augmentedImage) {
@@ -133,12 +150,21 @@ class SumerianConnector {
     }
 
     private String serializeArray(float[] array) {
-        try {
-            JSONArray jsonArray = new JSONArray(array);
-            return jsonArray.toString();
-        } catch (JSONException e) {
-            return "";
+
+        StringBuilder sb = new StringBuilder();
+        int last = array.length - 1;
+
+        sb.append("[");
+        for (int i = 0; i < last; i++) {
+
+            sb.append(array[i]);
+            sb.append(",");
         }
+        sb.append(array[last]);
+        sb.append("]");
+
+        return sb.toString();
+
     }
 
     private void evaluateWebViewJavascript(final String scriptString) {
@@ -170,6 +196,7 @@ class SumerianConnector {
     private class BridgeInterface {
 
         private float[] mHitTestResultPose = new float[16];
+        private long frameid = 0;
 
         @JavascriptInterface
         public void requestHitTest(final String requestId, final float screenX, final float screenY) {
@@ -222,5 +249,26 @@ class SumerianConnector {
                 }
             });
         }
+
+        @JavascriptInterface
+        public String getMatrices()
+        {
+
+            String vm = serializeArray(mViewMatrix);
+            String pm = serializeArray(mProjectionMatrix);
+
+            String res = "{\"vm\":"+vm+", \"pm\":"+pm+" }"; // \"ts\":"+fn+"}";
+            return res;
+        }
+
+        @JavascriptInterface
+        public void drawBG() {
+            frameid++;
+            if (frameid % 15 == 0) {
+                mBackgroundRenderer.swapTextures();
+                mSession.setCameraTextureName(mBackgroundRenderer.getCameraTextureName());
+            }
+        }
+
     }
 }
