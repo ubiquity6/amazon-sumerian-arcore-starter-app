@@ -1,37 +1,34 @@
-<!DOCTYPE HTML>
-<html lang="en">
-
-<head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>WebView Sync test</title>
-    
-
-    <!-- disable native mobile pinch-to-zoom, replacing with the engine zoom -->
-    <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
-
-
-    <link rel="stylesheet" type="text/css" href="style/style.css">
-
-</head>
-
-<body class="standard-theme ">    
-    <!--
-	This screen is shown after the scene is loaded. It contains the canvas where
-	the scene is displayed as well as the bottom bar with the scene	name, share
-	buttons, etc.
-	-->
-    <div id="canvas-screen">
-        <div id="canvas-outer">
-            <div id="canvas-inner">
-                <!-- The canvas is added here -->                
-            </div>            
-        </div>        
-    </div>       
-</body>
+<!DOCTYPE html>
+<meta charset="utf-8">
+<canvas width="400px" height="400px"></canvas>
 
 <script>
-    document.body.style.backgroundColor = 'transparent';
-</script>
 
-</html>
+// Select the canvas from the document.
+var canvas = document.querySelector("canvas");
+
+// Create the WebGL context, with fallback for experimental support.
+var gl = canvas.getContext("webgl");
+
+var currentFrame = 0;
+var currentColor = 1;
+var framesToSwitch = 30;
+
+function renderFrame(timestamp) {
+    gl.clearColor(currentColor,0,0,1);
+    if (window.Android && window.Android.setClearColor) {
+        window.Android.setClearColor(currentColor);
+    }
+
+    if (currentFrame % framesToSwitch == 0) {
+        currentColor = currentColor == 1 ? 0 : 1;
+    }
+    
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    currentFrame++;
+
+    window.requestAnimationFrame(renderFrame);
+}
+
+renderFrame(0);
+</script>

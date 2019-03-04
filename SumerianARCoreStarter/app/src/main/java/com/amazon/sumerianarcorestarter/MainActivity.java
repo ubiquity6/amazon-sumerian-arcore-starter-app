@@ -26,9 +26,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -40,8 +40,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
     private GLSurfaceView mSurfaceView;
     private WebView webView;
-
-    private final BackgroundRenderer mBackgroundRenderer = new BackgroundRenderer();
+    private float currentColor = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,13 +92,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         webSettings.setJavaScriptEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
 
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                super.onPageFinished(view, url);
-                view.setBackgroundColor(0x00000000);
-            }
-        });
+        webView.addJavascriptInterface(this, "Android");
 
 
         webView.loadUrl(SCENE_URL);
@@ -117,10 +110,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-        GLES20.glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
-        // Create the texture and pass it to ARCore session to be filled during update().
-        mBackgroundRenderer.createOnGlThread(/*context=*/this);
     }
 
     @Override
@@ -131,6 +121,13 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     @Override
     public void onDrawFrame(GL10 gl) {
         // Clear screen to notify driver it should not load any pixels from previous frame.
+        GLES20.glClearColor(currentColor, 0.0f, 0.0f, 1.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+    }
+
+    @JavascriptInterface
+    public void setClearColor(float c)
+    {
+        currentColor = c;
     }
 }
