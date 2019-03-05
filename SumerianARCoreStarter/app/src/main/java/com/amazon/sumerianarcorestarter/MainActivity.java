@@ -34,13 +34,13 @@ import android.webkit.WebViewClient;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
-public class MainActivity extends AppCompatActivity implements GLSurfaceView.Renderer  {
+public class MainActivity extends AppCompatActivity implements GLSurfaceView.Renderer, DrawCallback  {
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private static final String SCENE_URL = "http://127.0.0.1:8000/?arMode=true";
 
     private GLSurfaceView mSurfaceView;
-    private WebView webView;
+    private MyWebView webView;
     private int currentFrame = 0;
     private int framesToSwitch = 30;
     private Object lock = new Object();
@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        WebView.setWebContentsDebuggingEnabled(true);
+        //WebView.setWebContentsDebuggingEnabled(true);
         setupWebView();
 
 
@@ -98,6 +98,8 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         webSettings.setJavaScriptEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
 
+        webView.setOnDrawCallback(this);
+
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -138,7 +140,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         try {
             synchronized (lock) {
                 waiting = true;
-                lock.wait(1000);
+                lock.wait(600);
                 waiting = false;
             }
         } catch (InterruptedException e) {
@@ -160,10 +162,21 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     public void setCurrentFrame(int frame)
     {
         currentFrame = frame;
+        /*
+        synchronized (lock) {
+            if (waiting) {
+                lock.notify();
+            }
+        }*/
+    }
+
+    @Override
+    public void onDraw() {
         synchronized (lock) {
             if (waiting) {
                 lock.notify();
             }
         }
+
     }
 }
