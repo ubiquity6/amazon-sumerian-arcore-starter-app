@@ -41,7 +41,10 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
     private GLSurfaceView mSurfaceView;
     private WebView webView;
-    private float currentColor = 0;
+    private int currentFrame = 0;
+    private int framesToSwitch = 30;
+    private Object lock = new Object();
+    private boolean waiting = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,6 +52,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         setContentView(R.layout.activity_main);
 
         WebView.setWebContentsDebuggingEnabled(true);
+        setupWebView();
 
 
         mSurfaceView = findViewById(R.id.gl_surface_view);
@@ -59,6 +63,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         mSurfaceView.setEGLConfigChooser(8, 8, 8, 8, 16, 0); // Alpha used for plane blending.
         mSurfaceView.setRenderer(this);
         mSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+
     }
 
     @Override
@@ -82,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         super.onResume();
         mSurfaceView.onResume();
 
-        setupWebView();
+
     }
 
     void setupWebView()
@@ -93,8 +98,6 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         webSettings.setJavaScriptEnabled(true);
         webSettings.setMediaPlaybackRequiresUserGesture(false);
 
-
-
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
@@ -104,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
         });
 
         webView.addJavascriptInterface(this, "Android");
-
 
         webView.loadUrl(SCENE_URL);
     }
@@ -122,6 +124,7 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
 
+
     }
 
     @Override
@@ -131,14 +134,36 @@ public class MainActivity extends AppCompatActivity implements GLSurfaceView.Ren
 
     @Override
     public void onDrawFrame(GL10 gl) {
+
+        try {
+            synchronized (lock) {
+                waiting = true;
+                lock.wait(1000);
+                waiting = false;
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+//        Log.i(TAG, "Java frame: " + currentFrame);
+
+        int color = ((currentFrame - 2) / framesToSwitch) % 2;
+
         // Clear screen to notify driver it should not load any pixels from previous frame.
-        GLES20.glClearColor(currentColor, 0.0f, 0.0f, 1.0f);
+        GLES20.glClearColor(color, 0.0f, 0.0f, 1.0f);
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT | GLES20.GL_DEPTH_BUFFER_BIT);
+
     }
 
+
     @JavascriptInterface
-    public void setClearColor(float c)
+    public void setCurrentFrame(int frame)
     {
-        currentColor = c;
+        currentFrame = frame;
+        synchronized (lock) {
+            if (waiting) {
+                lock.notify();
+            }
+        }
     }
 }

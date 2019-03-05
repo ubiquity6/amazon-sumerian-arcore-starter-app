@@ -11,20 +11,20 @@ var canvas = document.querySelector("canvas");
 var gl = canvas.getContext("webgl");
 
 var currentFrame = 0;
-var currentColor = 1;
 var framesToSwitch = 30;
 
 function renderFrame(timestamp) {
-    gl.clearColor(currentColor,0,0,1);
-    if (window.Android && window.Android.setClearColor) {
-        window.Android.setClearColor(currentColor);
-    }
+        
+    var color = Math.floor(currentFrame / framesToSwitch) % 2;
 
-    if (currentFrame % framesToSwitch == 0) {
-        currentColor = currentColor == 1 ? 0 : 1;
-    }
-    
+    gl.clearColor(color, 0,0,1);    
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    if (window.Android && window.Android.setCurrentFrame) {        
+        //console.log(`JS frame: ${currentFrame}`);        
+        window.Android.setCurrentFrame(currentFrame);
+    }    
+
     currentFrame++;
 
     window.requestAnimationFrame(renderFrame);
